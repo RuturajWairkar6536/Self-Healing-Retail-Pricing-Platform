@@ -1,7 +1,11 @@
 import streamlit as st
 import requests
+import numpy as np
+import pandas as pd
 
+# =========================
 # Title
+# =========================
 st.title("💰 Retail Price Optimization System")
 
 # =========================
@@ -52,6 +56,36 @@ if st.button("Optimize Price"):
                 st.success(f"✅ {result['decision']}")
             else:
                 st.warning(f"⚠️ {result['decision']}")
+
+            # =========================
+            # 📈 Price vs Revenue Curve
+            # =========================
+            st.subheader("📈 Price vs Revenue Curve")
+
+            prices = np.linspace(price * 0.8, price * 1.2, 25)
+            revenues = []
+
+            for p in prices:
+                temp_data = {
+                    "price": float(p),
+                    "day": day,
+                    "month": month
+                }
+
+                temp_response = requests.post(url, json=temp_data)
+
+                if temp_response.status_code == 200:
+                    temp_result = temp_response.json()
+                    revenues.append(temp_result['best_revenue'])
+                else:
+                    revenues.append(0)
+
+            df = pd.DataFrame({
+                "Price": prices,
+                "Revenue": revenues
+            })
+
+            st.line_chart(df.set_index("Price"))
 
         else:
             st.error("API call failed ❌")
