@@ -1,14 +1,19 @@
 import streamlit as st
 import requests
 
+# Title
 st.title("💰 Retail Price Optimization System")
 
+# =========================
 # Inputs
+# =========================
 price = st.slider("Select Current Price", 1, 500, 100)
 day = st.selectbox("Day of Week (0=Mon, 6=Sun)", list(range(7)))
 month = st.selectbox("Month", list(range(1, 13)))
 
+# =========================
 # Button
+# =========================
 if st.button("Optimize Price"):
 
     url = "http://127.0.0.1:5000/optimize"
@@ -19,23 +24,37 @@ if st.button("Optimize Price"):
         "month": month
     }
 
-    response = requests.post(url, json=data)
+    try:
+        response = requests.post(url, json=data)
 
-    if response.status_code == 200:
-        result = response.json()
+        if response.status_code == 200:
+            result = response.json()
 
-        st.subheader("📊 Results")
+            # =========================
+            # Results UI
+            # =========================
+            st.subheader("📊 Optimization Results")
 
-        st.write(f"Current Price: {result['current_price']}")
-        st.write(f"Current Revenue: {result['current_revenue']}")
+            col1, col2 = st.columns(2)
 
-        st.write(f"Best Price: {result['best_price']}")
-        st.write(f"Optimized Revenue: {result['best_revenue']}")
+            with col1:
+                st.metric("Current Revenue", f"{result['current_revenue']:.2f}")
 
-        st.write(f"Predicted Demand: {result['predicted_demand']}")
-        st.write(f"Improvement %: {result['improvement_%']}")
+            with col2:
+                st.metric("Optimized Revenue", f"{result['best_revenue']:.2f}")
 
-        st.success(f"Decision: {result['decision']}")
+            st.write(f"💰 Best Price: {result['best_price']}")
+            st.write(f"📦 Predicted Demand: {result['predicted_demand']:.2f}")
+            st.write(f"📈 Improvement: {result['improvement_%']:.2f}%")
 
-    else:
-        st.error("API call failed ❌")
+            # Decision
+            if "Apply" in result['decision']:
+                st.success(f"✅ {result['decision']}")
+            else:
+                st.warning(f"⚠️ {result['decision']}")
+
+        else:
+            st.error("API call failed ❌")
+
+    except:
+        st.error("Cannot connect to Flask API 🚨")
