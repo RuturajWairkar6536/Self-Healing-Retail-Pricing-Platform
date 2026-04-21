@@ -12,7 +12,7 @@ st.set_page_config(
     layout="centered"
 )
 
-FLASK_URL = "http://127.0.0.1:5000"
+FLASK_URL = "http://127.0.0.1:5001"
 CSV_PATH  = "clean_demand_data.csv"
 
 # =========================
