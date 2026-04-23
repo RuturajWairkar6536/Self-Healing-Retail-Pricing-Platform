@@ -1,204 +1,139 @@
-# Self-Healing Retail Pricing Platform
+# AI-Powered Smart Ecommerce Pricing Platform
 
-> AI-powered demand prediction and revenue-maximising price optimisation using Random Forest.
+One unified Streamlit + Flask + Python platform where an ecommerce store directly uses the AI price optimizer.
 
----
+## What It Does
 
-## Overview
+Admin side:
+- Manage products and inventory
+- Run demand prediction and price optimization
+- Compare current price vs optimized price
+- See predicted demand, revenue gain, and decision suggestion
+- Apply the optimized price directly to the ecommerce catalog
+- View revenue, bestselling products, demand trends, low stock alerts, and price history
+- Trigger retraining with new CSV/Excel sales data
 
-This system predicts product demand and recommends the optimal selling price to maximise revenue.
-It uses a machine learning model trained on historical retail transaction data (UCI Online Retail II dataset).
+Customer side:
+- Browse products
+- Search and filter by category
+- View product details, images, stock, discount badges, and AI-updated prices
+- Add products to cart
+- Complete a mock checkout
+- Checkout writes orders and sales data back to CSV for future retraining
 
-**System Flow:**
+## Integrated Flow
+
+```text
+Admin adds product
+-> ML model predicts demand and best price
+-> Admin applies optimized price
+-> products.csv is updated
+-> Customer store reads the updated catalog price
+-> Customer buys product
+-> orders.csv and sales_history.csv are updated
+-> New sales data can be used for retraining
 ```
-User → Streamlit UI → Flask REST API → ML Model → Price Recommendation
-                                                 ↓
-                               GitHub Push → Jenkins → retrain.py → Updated Model
-```
-
----
 
 ## Tech Stack
 
-| Layer       | Technology                        |
-|-------------|-----------------------------------|
-| ML Model    | Scikit-learn (Random Forest)      |
-| Backend     | Flask (REST API)                  |
-| Frontend    | Streamlit                         |
-| Data        | Pandas, NumPy                     |
-| MLOps       | retrain.py pipeline + Jenkins CI  |
+- Streamlit
+- Flask REST API
+- Python
+- CSV files
+- JSON files
+- Existing scikit-learn ML model (`pricing_model.pkl`)
 
----
+No Docker, Kubernetes, Jenkins, Ansible, CI/CD, or cloud deployment is included.
 
-## Project Structure
+## Folder Structure
 
-```
+```text
 SPE_MP/
-├── app.py                  # Flask REST API
-├── streamlit_app.py        # Streamlit frontend
-├── retrain.py              # MLOps retraining pipeline
-├── test_api.py             # API smoke-test script
-├── requirements.txt        # Python dependencies
-├── pricing_model.pkl       # Trained Random Forest model (not in git)
-├── clean_demand_data.csv   # Preprocessed training data (not in git)
-├── online_retail_II.xlsx   # Raw dataset (not in git)
-├── logs/                   # Auto-created by retrain.py
-└── SPE_Major_1_4.ipynb     # EDA + model training notebook (Colab)
+├── app.py                    # Unified Flask API: optimizer + ecommerce + analytics
+├── streamlit_app.py          # Admin dashboard
+├── streamlit_customer.py     # Customer ecommerce store
+├── retrain.py                # Retraining pipeline
+├── test_api.py               # Optimizer API smoke tests
+├── pricing_model.pkl         # Existing trained model
+├── clean_demand_data.csv     # Existing training dataset
+├── data/
+│   ├── products.csv
+│   ├── inventory.csv
+│   ├── orders.csv
+│   ├── sales_history.csv
+│   ├── price_history.csv
+│   ├── users.json
+│   ├── cart.json
+│   └── config.json
+└── requirements.txt
 ```
 
----
-
-## Setup
-
-### 1. Install dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 2. Generate the model
-Run all cells in `SPE_Major_1_4.ipynb` (Google Colab) to produce:
-- `pricing_model.pkl`
-- `clean_demand_data.csv`
-
-### 3. Start the Flask API
-```bash
-python app.py
-```
-API runs on `http://localhost:5000`
-
-### 4. Start the Streamlit UI (new terminal)
-```bash
-streamlit run streamlit_app.py
-```
-UI opens at `http://localhost:8501`
-
-### 5. Run API smoke tests (optional)
-```bash
-python test_api.py
-```
-Runs 6 test groups covering all endpoints and edge cases.
-
----
-
-## API Endpoints
-
-### `GET /health`
-Health check — returns model status.
-
-```json
-{ "status": "ok", "model_loaded": true, "model_path": "pricing_model.pkl" }
-```
-
----
-
-### `POST /optimize`
-Optimise price for maximum revenue.
-
-**Request:**
-```json
-{
-  "price": 100.0,
-  "day": 2,
-  "month": 5,
-  "stock": 50,
-  "competitor_price": 95.0
-}
-```
-> `stock` and `competitor_price` are optional.
-
-**Response:**
-```json
-{
-  "current_price": 100.0,
-  "current_demand": 42.0,
-  "current_revenue": 4200.0,
-  "best_price": 112.5,
-  "best_demand": 40.0,
-  "best_revenue": 4500.0,
-  "improvement_%": 7.14,
-  "decision": "Apply Optimized Price",
-  "competitor_price": 95.0
-}
-```
-
-**Decision Logic (A/B):**
-| Condition | Decision |
-|-----------|----------|
-| Revenue improves > 5% | Apply Optimized Price |
-| Best price > competitor × 1.1 | Consider Competitive Pricing |
-| Otherwise | Keep Current Price |
-
----
-
-### `POST /trigger_retrain`
-Trigger model retraining in the background (used by Jenkins after a GitHub push).
-Flask runs `retrain.py` as a subprocess, then hot-reloads the updated model automatically.
+## Run Locally
 
 ```bash
-curl -X POST http://localhost:5000/trigger_retrain \
-     -H "Content-Type: application/json" \
-     -d '{"new_data": "online_retail_II.xlsx"}'
+cd ~/Desktop/SPE_MP
+
+# Terminal 1
+venv/bin/python app.py
+
+# Terminal 2
+venv/bin/streamlit run streamlit_app.py --server.port 8503
+
+# Terminal 3
+venv/bin/streamlit run streamlit_customer.py --server.port 8504
 ```
 
-**Response (202 Accepted):**
-```json
-{ "status": "accepted", "message": "Retraining started in background.", "new_data": "online_retail_II.xlsx" }
+URLs:
+- Flask API: `http://127.0.0.1:5001`
+- Admin dashboard: `http://127.0.0.1:8503`
+- Customer store: `http://127.0.0.1:8504`
+
+## Key API Endpoints
+
+- `GET /health`
+- `GET /products`
+- `POST /products`
+- `GET /product/<product_id>`
+- `POST /optimize`
+- `POST /apply_price`
+- `GET /cart`
+- `POST /cart/add`
+- `POST /cart/remove`
+- `POST /checkout`
+- `GET /analytics`
+- `POST /trigger_retrain`
+- `GET /retrain_status`
+
+## Data Schemas
+
+`products.csv`
+```text
+product_id,stock_code,product_name,category,description,image_url,current_price,original_price,stock,active
 ```
 
-| HTTP Code | Meaning |
-|-----------|---------|
-| 202 | Retraining started |
-| 409 | Already running |
-| 401 | Bad token |
-
----
-
-### `GET /retrain_status`
-Check if retraining is in progress and what the last run result was.
-
-```json
-{ "running": false, "last_status": "success", "last_log": "..." }
+`inventory.csv`
+```text
+product_id,stock,last_updated,low_stock_threshold
 ```
 
----
+`orders.csv`
+```text
+order_id,order_date,customer_name,product_id,product_name,quantity_sold,price_at_sale,revenue,day_of_week,month
+```
 
-### `POST /reload_model`
-Hot-reload the model from disk after retraining (no restart needed).
+`sales_history.csv`
+```text
+StockCode,date,day_of_week,month,demand,Price
+```
+
+`price_history.csv`
+```text
+timestamp,product_id,old_price,new_price,reason,decision,predicted_demand,revenue_gain_pct
+```
+
+## Verification
 
 ```bash
-curl -X POST http://localhost:5000/reload_model \
-     -H "X-Reload-Token: your_secret_token"
+venv/bin/python -m py_compile app.py retrain.py streamlit_app.py streamlit_customer.py test_api.py
+venv/bin/python test_api.py --url http://127.0.0.1:5001
 ```
-
-Set `RELOAD_TOKEN` environment variable to enable token protection.
-
----
-
-## MLOps — Retraining
-
-The `retrain.py` pipeline:
-1. Loads old cleaned data (`clean_demand_data.csv`)
-2. Loads a new Excel file, applies the same preprocessing
-3. Merges both datasets
-4. Retrains the Random Forest model
-5. Backs up old `pricing_model.pkl` and overwrites it
-6. Logs all metrics to `logs/retrain_<timestamp>.log`
-
-```bash
-# Retrain using default file
-python retrain.py
-
-# Use a custom new-data file
-python retrain.py --new_data new_sales_data.xlsx
-
-# Dry run (no model overwrite)
-python retrain.py --dry_run
-```
-
----
-
-## Notes
-
-- The `.pkl`, `.xlsx`, and `.csv` files are excluded from git due to size (see `.gitignore`).
-- Jenkins CI/CD triggers `retrain.py` automatically on GitHub push (Ubuntu server setup).
-- Drift detection is a planned future improvement.

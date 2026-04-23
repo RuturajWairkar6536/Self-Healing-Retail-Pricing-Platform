@@ -80,13 +80,13 @@ Runs on port 5000 with ALL endpoints (pricing + e-commerce)
 
 **Option 2: Start Admin Dashboard (Terminal 2)**
 ```bash
-streamlit run streamlit_app.py --server.port 8501
+streamlit run streamlit_app.py --server.port 8503
 ```
 Original admin dashboard (unchanged)
 
 **Option 3: Start Customer Store (Terminal 3)**
 ```bash
-streamlit run streamlit_customer.py --server.port 8502
+streamlit run streamlit_customer.py --server.port 8504
 ```
 NEW customer e-commerce website
 
@@ -97,8 +97,8 @@ NEW customer e-commerce website
 | Component | URL | Purpose |
 |-----------|-----|---------|
 | **API** | http://127.0.0.1:5000 | Flask backend |
-| **Admin Dashboard** | http://127.0.0.1:8501 | Existing admin (unchanged) |
-| **Customer Store** | http://127.0.0.1:8502 | NEW e-commerce site |
+| **Admin Dashboard** | http://127.0.0.1:8503 | Existing admin dashboard |
+| **Customer Store** | http://127.0.0.1:8504 | Customer e-commerce site |
 
 ---
 
@@ -229,15 +229,15 @@ cd ~/Desktop/SPE_MP
 python app.py
 
 # Terminal 2 - Admin (existing)
-streamlit run streamlit_app.py --server.port 8501
+streamlit run streamlit_app.py --server.port 8503
 
 # Terminal 3 - Customer Store (NEW)
-streamlit run streamlit_customer.py --server.port 8502
+streamlit run streamlit_customer.py --server.port 8504
 ```
 
 Then visit:
-- Admin: http://127.0.0.1:8501
-- Store: http://127.0.0.1:8502
+- Admin: http://127.0.0.1:8503
+- Store: http://127.0.0.1:8504
 
 ---
 
@@ -257,15 +257,15 @@ Then visit:
 ## 📋 Testing the Integration
 
 ### Test 1: Admin Price Update
-1. Go to Admin (8501)
+1. Go to Admin (8503)
 2. Enter product, set price
 3. Click optimize
 4. Apply new price
-5. Go to Store (8502)
+5. Go to Store (8504)
 6. See updated price ✅
 
 ### Test 2: Customer Purchase
-1. Go to Store (8502)
+1. Go to Store (8504)
 2. Browse products
 3. Add to cart
 4. Checkout
@@ -311,8 +311,8 @@ Your SPE_MP folder now contains:
 Run it now:
 ```bash
 python app.py
-streamlit run streamlit_app.py --server.port 8501
-streamlit run streamlit_customer.py --server.port 8502
+streamlit run streamlit_app.py --server.port 8503
+streamlit run streamlit_customer.py --server.port 8504
 ```
 
 Everything in **ONE project: SPE_MP** ✅
