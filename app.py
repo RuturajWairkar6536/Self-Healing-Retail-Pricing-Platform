@@ -291,7 +291,253 @@ def retrain_status():
 
 
 # =========================
+# E-Commerce: Products
+# =========================
+
+def get_all_products():
+    """Load all products from CSV"""
+    try:
+        df = pd.read_csv("data/products.csv")
+        return df.to_dict("records")
+    except:
+        return []
+
+
+def get_product_by_id(product_id):
+    """Get single product"""
+    try:
+        df = pd.read_csv("data/products.csv")
+        filtered = df[df["product_id"] == product_id]
+        if filtered.empty:
+            return None
+        return filtered.iloc[0].to_dict()
+    except:
+        return None
+
+
+@app.route("/products", methods=["GET"])
+def list_products():
+    """Get all products"""
+    try:
+        products = get_all_products()
+        return jsonify({"products": products, "count": len(products)}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/product/<product_id>", methods=["GET"])
+def get_product(product_id):
+    """Get single product with AI price recommendation"""
+    try:
+        product = get_product_by_id(product_id)
+        if not product:
+            return jsonify({"error": "Product not found"}), 404
+        
+        # Get AI recommendation for current price
+        from datetime import datetime
+        now = datetime.now()
+        rec = optimize_price(
+            product["current_price"],
+            now.weekday(),
+            now.month
+        )
+        
+        product["ai_price"] = round(rec[0], 2)
+        product["ai_demand"] = round(rec[1], 2)
+        product["ai_revenue"] = round(rec[2], 2)
+        
+        return jsonify(product), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/categories", methods=["GET"])
+def get_categories():
+    """Get all unique categories"""
+    try:
+        df = pd.read_csv("data/products.csv")
+        categories = df["category"].unique().tolist()
+        return jsonify({"categories": sorted(categories)}), 200
+    except:
+        return jsonify({"categories": []}), 200
+
+
+# =========================
+# E-Commerce: Cart & Orders
+# =========================
+
+def load_cart(session_id="default"):
+    """Load cart from JSON"""
+    import json
+    try:
+        with open("data/cart.json", "r") as f:
+            data = json.load(f)
+        return data.get("carts", {}).get(session_id, {"items": [], "total_items": 0, "total_price": 0.0})
+    except:
+        return {"items": [], "total_items": 0, "total_price": 0.0}
+
+
+def save_cart(session_id, cart):
+    """Save cart to JSON"""
+    import json
+    try:
+        with open("data/cart.json", "r") as f:
+            data = json.load(f)
+    except:
+        data = {"carts": {}}
+    
+    if "carts" not in data:
+        data["carts"] = {}
+    
+    data["carts"][session_id] = cart
+    
+    with open("data/cart.json", "w") as f:
+        json.dump(data, f, indent=2)
+
+
+@app.route("/cart", methods=["GET"])
+def get_cart():
+    """Get shopping cart"""
+    try:
+        session_id = request.args.get("session", "default")
+        cart = load_cart(session_id)
+        return jsonify(cart), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/cart/add", methods=["POST"])
+def add_to_cart():
+    """Add item to cart"""
+    try:
+        data = request.get_json(force=True)
+        session_id = data.get("session", "default")
+        product_id = data.get("product_id")
+        quantity = int(data.get("quantity", 1))
+        price = float(data.get("price"))
+        
+        cart = load_cart(session_id)
+        
+        # Check if product already in cart
+        found = False
+        for item in cart["items"]:
+            if item["product_id"] == product_id:
+                item["quantity"] += quantity
+                found = True
+                break
+        
+        if not found:
+            cart["items"].append({
+                "product_id": product_id,
+                "quantity": quantity,
+                "price": price
+            })
+        
+        # Recalculate totals
+        cart["total_items"] = sum(item["quantity"] for item in cart["items"])
+        cart["total_price"] = sum(item["quantity"] * item["price"] for item in cart["items"])
+        
+        save_cart(session_id, cart)
+        logger.info(f"Added {product_id} to cart")
+        
+        return jsonify({"status": "added", "cart": cart}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/cart/remove", methods=["POST"])
+def remove_from_cart():
+    """Remove item from cart"""
+    try:
+        data = request.get_json(force=True)
+        session_id = data.get("session", "default")
+        product_id = data.get("product_id")
+        
+        cart = load_cart(session_id)
+        cart["items"] = [item for item in cart["items"] if item["product_id"] != product_id]
+        
+        # Recalculate
+        cart["total_items"] = sum(item["quantity"] for item in cart["items"])
+        cart["total_price"] = sum(item["quantity"] * item["price"] for item in cart["items"])
+        
+        save_cart(session_id, cart)
+        logger.info(f"Removed {product_id} from cart")
+        
+        return jsonify({"status": "removed", "cart": cart}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/checkout", methods=["POST"])
+def checkout():
+    """Process checkout and save order"""
+    try:
+        data = request.get_json(force=True)
+        session_id = data.get("session", "default")
+        customer_name = data.get("customer_name", "Guest")
+        
+        cart = load_cart(session_id)
+        if not cart["items"]:
+            return jsonify({"error": "Cart is empty"}), 400
+        
+        # Append to orders CSV
+        from datetime import datetime
+        now = datetime.now()
+        
+        orders_data = []
+        for item in cart["items"]:
+            orders_data.append({
+                "date": now.strftime("%Y-%m-%d"),
+                "product_id": item["product_id"],
+                "quantity_sold": item["quantity"],
+                "price_at_sale": item["price"],
+                "revenue": item["quantity"] * item["price"],
+                "day_of_week": now.weekday(),
+                "month": now.month
+            })
+        
+        # Save to orders.csv
+        orders_df = pd.DataFrame(orders_data)
+        try:
+            existing = pd.read_csv("data/orders.csv")
+            orders_df = pd.concat([existing, orders_df], ignore_index=True)
+        except:
+            pass
+        
+        orders_df.to_csv("data/orders.csv", index=False)
+        
+        # Update product stock
+        try:
+            products_df = pd.read_csv("data/products.csv")
+            for item in cart["items"]:
+                products_df.loc[products_df["product_id"] == item["product_id"], "stock"] -= item["quantity"]
+            products_df.to_csv("data/products.csv", index=False)
+        except:
+            pass
+        
+        # Clear cart
+        cart["items"] = []
+        cart["total_items"] = 0
+        cart["total_price"] = 0.0
+        save_cart(session_id, cart)
+        
+        order_id = f"ORD-{now.strftime('%Y%m%d%H%M%S')}"
+        logger.info(f"Order {order_id}: {len(orders_data)} items for ₹{sum([o['revenue'] for o in orders_data]):.2f}")
+        
+        return jsonify({
+            "status": "success",
+            "order_id": order_id,
+            "total_amount": sum([o["revenue"] for o in orders_data]),
+            "items_count": sum([o["quantity_sold"] for o in orders_data])
+        }), 200
+    except Exception as e:
+        logger.error(f"Checkout error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# =========================
 # Run
 # =========================
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host="0.0.0.0", port=port)
