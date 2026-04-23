@@ -3,9 +3,10 @@ retrain.py — Self-Healing Retail Pricing Platform
 MLOps Retraining Pipeline
 
 Usage:
-    python retrain.py                          # uses online_retail_II.xlsx as new data
-    python retrain.py --new_data my_data.xlsx  # uses custom file
-    python retrain.py --dry_run                # runs without overwriting model
+    python retrain.py                                  # uses data/sales_history.csv
+    python retrain.py --new_data my_data.xlsx          # uses custom Excel file
+    python retrain.py --new_data data/orders.csv       # uses checkout/order CSV data
+    python retrain.py --dry_run                        # runs without overwriting model
 """
 
 import os
@@ -74,7 +75,7 @@ def load_old_data(path: str) -> pd.DataFrame:
 
 
 # =========================
-# Step 2: Load & Preprocess New Excel Data
+# Step 2: Load & Preprocess New Data
 # =========================
 def load_and_preprocess_excel(path: str) -> pd.DataFrame:
     logger.info(f"Loading new Excel data from: {path}")
@@ -108,6 +109,59 @@ def load_and_preprocess_excel(path: str) -> pd.DataFrame:
 
     logger.info(f"Preprocessed new data shape: {df_demand.shape}")
     return df_demand
+
+
+def load_and_preprocess_csv(path: str) -> pd.DataFrame:
+    logger.info(f"Loading new CSV data from: {path}")
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"New data file not found: {path}")
+
+    df = pd.read_csv(path)
+    logger.info(f"Raw new CSV shape: {df.shape}")
+    if df.empty:
+        logger.warning("New CSV is empty; no new samples will be merged.")
+        return pd.DataFrame(columns=["StockCode", "date", "day_of_week", "month", "demand", "Price"])
+
+    # Native store checkout schema: sales_history.csv
+    if {"Price", "day_of_week", "month", "demand"}.issubset(df.columns):
+        cleaned = df.copy()
+        cleaned["Price"] = pd.to_numeric(cleaned["Price"], errors="coerce")
+        cleaned["day_of_week"] = pd.to_numeric(cleaned["day_of_week"], errors="coerce")
+        cleaned["month"] = pd.to_numeric(cleaned["month"], errors="coerce")
+        cleaned["demand"] = pd.to_numeric(cleaned["demand"], errors="coerce")
+        cleaned.dropna(subset=["Price", "day_of_week", "month", "demand"], inplace=True)
+        cleaned = cleaned[(cleaned["Price"] > 0) & (cleaned["demand"] > 0)]
+        return cleaned
+
+    # Order ledger schema: orders.csv
+    if {"product_id", "order_date", "quantity_sold", "price_at_sale"}.issubset(df.columns):
+        df["order_date"] = pd.to_datetime(df["order_date"], errors="coerce")
+        df.dropna(subset=["order_date", "quantity_sold", "price_at_sale"], inplace=True)
+        df["day_of_week"] = df["order_date"].dt.dayofweek
+        df["month"] = df["order_date"].dt.month
+        df["date"] = df["order_date"].dt.date
+        df_demand = (
+            df.groupby(["product_id", "date", "day_of_week", "month"])
+            .agg(demand=("quantity_sold", "sum"), Price=("price_at_sale", "mean"))
+            .reset_index()
+            .rename(columns={"product_id": "StockCode"})
+        )
+        df_demand = df_demand[(df_demand["Price"] > 0) & (df_demand["demand"] > 0)]
+        return df_demand
+
+    raise ValueError(
+        "CSV must use sales_history columns (Price, day_of_week, month, demand) "
+        "or orders columns (product_id, order_date, quantity_sold, price_at_sale)."
+    )
+
+
+def load_and_preprocess_new_data(path: str) -> pd.DataFrame:
+    ext = os.path.splitext(path)[1].lower()
+    if ext in [".xlsx", ".xls"]:
+        return load_and_preprocess_excel(path)
+    if ext == ".csv":
+        return load_and_preprocess_csv(path)
+    raise ValueError("new_data must be a .csv, .xlsx, or .xls file")
 
 
 # =========================
@@ -161,7 +215,20 @@ def train_model(df: pd.DataFrame):
 
     logger.info(f"Model Evaluation — MAE: {mae:.4f} | R²: {r2:.4f}")
 
-    return model, mae, r2
+    return model, mae, r2, X_test, y_test
+
+
+def evaluate_existing_model(X_test: pd.DataFrame, y_test: pd.Series):
+    if not os.path.exists(MODEL_PATH):
+        logger.info("No existing model found; new model will be saved.")
+        return None, None
+    with open(MODEL_PATH, "rb") as f:
+        old_model = pickle.load(f)
+    y_pred = old_model.predict(X_test)
+    mae = mean_absolute_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+    logger.info(f"Existing Model Evaluation — MAE: {mae:.4f} | R²: {r2:.4f}")
+    return mae, r2
 
 
 # =========================
@@ -198,13 +265,22 @@ def run_pipeline(new_data_path: str, dry_run: bool = False):
         old_df = load_old_data(OLD_DATA_PATH)
 
         # 2. Load & preprocess new data
-        new_df = load_and_preprocess_excel(new_data_path)
+        new_df = load_and_preprocess_new_data(new_data_path)
 
         # 3. Merge
         merged_df = merge_datasets(old_df, new_df)
 
         # 4. Train
-        model, mae, r2 = train_model(merged_df)
+        model, mae, r2, X_test, y_test = train_model(merged_df)
+
+        old_mae, old_r2 = evaluate_existing_model(X_test, y_test)
+        should_save = old_mae is None or mae <= old_mae or r2 >= old_r2
+        if not should_save:
+            logger.warning(
+                "New model did not beat existing model; keeping existing model. "
+                f"old_mae={old_mae:.4f}, new_mae={mae:.4f}, old_r2={old_r2:.4f}, new_r2={r2:.4f}"
+            )
+            dry_run = True
 
         # 5. Save
         save_model(model, MODEL_PATH, dry_run=dry_run)
@@ -214,7 +290,15 @@ def run_pipeline(new_data_path: str, dry_run: bool = False):
         logger.info(f"Log saved to: {log_filename}")
         logger.info("=" * 55)
 
-        return {"status": "success", "mae": mae, "r2": r2, "elapsed_seconds": elapsed}
+        return {
+            "status": "success",
+            "mae": mae,
+            "r2": r2,
+            "old_mae": old_mae,
+            "old_r2": old_r2,
+            "model_saved": should_save and not dry_run,
+            "elapsed_seconds": elapsed
+        }
 
     except Exception as e:
         logger.error(f"Pipeline failed: {e}", exc_info=True)
@@ -229,8 +313,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--new_data",
         type=str,
-        default="online_retail_II.xlsx",
-        help="Path to new Excel data file (default: online_retail_II.xlsx)"
+        default="data/sales_history.csv",
+        help="Path to new CSV/Excel data file (default: data/sales_history.csv)"
     )
     parser.add_argument(
         "--dry_run",
