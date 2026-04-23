@@ -19,7 +19,7 @@ st.set_page_config(
     layout="wide"
 )
 
-API_URL = "http://127.0.0.1:5000"
+API_URL = "http://127.0.0.1:5001"
 SESSION_ID = "customer_session"
 
 # Custom CSS
