@@ -1,0 +1,11 @@
+{
+  "85123A": [
+    {
+      "quantity": 50,
+      "previous_quantity": 150,
+      "change": -100,
+      "reason": "api_request",
+      "timestamp": "2026-04-18T18:51:36.743101"
+    }
+  ]
+}

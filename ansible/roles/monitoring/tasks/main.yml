@@ -1,0 +1,27 @@
+---
+# Monitoring support tasks
+- name: Create monitoring directory
+  file:
+    path: "{{ project_path }}/monitoring"
+    state: directory
+    owner: "{{ project_user }}"
+    group: "{{ project_group }}"
+
+- name: Copy Prometheus configuration
+  copy:
+    content: |
+      global:
+        scrape_interval: 15s
+        evaluation_interval: 15s
+
+      scrape_configs:
+        - job_name: 'docker'
+          static_configs:
+            - targets: ['localhost:9323']
+
+        - job_name: 'pricing-api'
+          static_configs:
+            - targets: ['localhost:5001']
+    dest: "{{ project_path }}/monitoring/prometheus.yml"
+    owner: "{{ project_user }}"
+    group: "{{ project_group }}"

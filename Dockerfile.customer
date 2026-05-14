@@ -1,0 +1,28 @@
+# Customer Portal Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY streamlit_customer.py .
+COPY requirements.txt .
+COPY data/ ./data/
+RUN mkdir -p ./logs
+
+# Create Streamlit config directory
+RUN mkdir -p /root/.streamlit
+COPY streamlit/config.toml /root/.streamlit/config.toml
+
+EXPOSE 8504
+ENV PYTHONUNBUFFERED=1
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8504/_stcore/health || exit 1
+
+CMD ["streamlit", "run", "streamlit_customer.py", "--server.port=8504", "--server.address=0.0.0.0"]

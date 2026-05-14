@@ -1,0 +1,66 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ml-trainer
+  namespace: spe-platform
+  labels:
+    app: ml-trainer
+spec:
+  # Run every day at 2 AM
+  schedule: "0 2 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: ml-trainer
+        spec:
+          serviceAccountName: ml-trainer-sa
+          restartPolicy: OnFailure
+          containers:
+          - name: trainer
+            image: IMAGE_REGISTRY/spe-platform:trainer-IMAGE_TAG
+            imagePullPolicy: IfNotPresent
+            env:
+            - name: PYTHONUNBUFFERED
+              valueFrom:
+                configMapKeyRef:
+                  name: ml-trainer-config
+                  key: PYTHONUNBUFFERED
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ml-trainer-config
+                  key: LOG_LEVEL
+            resources:
+              requests:
+                memory: "1Gi"
+                cpu: "1000m"
+              limits:
+                memory: "2Gi"
+                cpu: "2000m"
+            volumeMounts:
+            - name: app-data
+              mountPath: /app/data
+            - name: app-logs
+              mountPath: /app/logs
+            - name: model-storage
+              mountPath: /app/models
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 1000
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                - ALL
+          volumes:
+          - name: app-data
+            emptyDir: {}
+          - name: app-logs
+            emptyDir: {}
+          - name: model-storage
+            emptyDir: {}

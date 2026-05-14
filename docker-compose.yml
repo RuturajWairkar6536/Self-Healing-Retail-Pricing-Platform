@@ -1,0 +1,132 @@
+services:
+  # Pricing API Service
+  pricing-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pricing-api
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=development
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./pricing_model.pkl:/app/pricing_model.pkl:ro
+    networks:
+      - spe-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Admin Dashboard
+  admin-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.admin
+    container_name: admin-dashboard
+    ports:
+      - "8503:8503"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ADMIN_API_URL=http://pricing-api:5001
+    depends_on:
+      pricing-api:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - spe-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8503/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Customer Portal
+  customer-portal:
+    build:
+      context: .
+      dockerfile: Dockerfile.customer
+    container_name: customer-portal
+    ports:
+      - "8504:8504"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - STORE_API_URL=http://pricing-api:5001
+    depends_on:
+      pricing-api:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - spe-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8504/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Optional: PostgreSQL for future data persistence
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-db
+    environment:
+      - POSTGRES_DB=spe_platform
+      - POSTGRES_USER=spe_user
+      - POSTGRES_PASSWORD=spe_secure_password_change_me
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - spe-network
+    restart: unless-stopped
+
+  # Optional: Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: redis-cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - spe-network
+    restart: unless-stopped
+
+  # Jenkins CI/CD
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile.jenkins
+    container_name: jenkins
+    ports:
+      - "${JENKINS_HTTP_PORT:-8081}:8080"
+      - "${JENKINS_AGENT_PORT:-50000}:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - spe-network
+    restart: unless-stopped
+
+networks:
+  spe-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  jenkins_home:

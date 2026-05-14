@@ -1,0 +1,25 @@
+{
+  "users": [
+    {
+      "user_id": "admin",
+      "name": "Admin",
+      "role": "admin"
+    },
+    {
+      "user_id": "cust_1",
+      "name": "Ruturaj",
+      "email": "ruturajwairkar@gmail.com",
+      "password_hash": "scrypt:32768:8:1$fHvhPmFGjSZq6vjN$dd05816269902152e08b166cf21eddedb73304cd72243e8698f8de3267f5939ac501ca997aae50ddc91fc6c4529f1f40a0bd577c8c1fc015f9c3fbfbbcd12245",
+      "role": "customer",
+      "created_at": "2026-05-13T02:19:49.590203"
+    },
+    {
+      "user_id": "cust_2",
+      "name": "tester1",
+      "email": "tester1@gmail.com",
+      "password_hash": "scrypt:32768:8:1$XFNae1rLqXqESxAy$8ddb4b2e698daa65b9f31b53cbfa7c58ccca9c054e16ce31fa83b1506a44ff4682b3e4a444035b0cb3f60f5fffbb1358f4209a7f67e6b2c317fcf7e4e1587378",
+      "role": "customer",
+      "created_at": "2026-05-13T17:17:28.068690"
+    }
+  ]
+}

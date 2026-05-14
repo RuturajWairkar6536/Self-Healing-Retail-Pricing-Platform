@@ -1,0 +1,43 @@
+# DevOps-related files
+Dockerfile*
+docker-compose.yml
+.dockerignore
+.docker/
+
+# Kubernetes manifests
+k8s/
+
+# Jenkins
+Jenkinsfile
+.jenkins/
+
+# Ansible
+ansible/
+*.retry
+
+# Scripts
+scripts/
+
+# Kubernetes kubeconfig
+kubeconfig
+kubeconfig.yml
+
+# CI/CD
+.github/workflows/
+.gitlab-ci.yml
+.circleci/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+.tmp/
+.cache/
+
+# Secrets (never commit!)
+.env
+.env.local
+secrets.yaml
+*-secrets.yaml
+k8s/secrets/

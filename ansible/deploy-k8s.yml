@@ -1,0 +1,123 @@
+---
+- name: Deploy SPE Platform to Kubernetes
+  hosts: localhost
+  gather_facts: yes
+  
+  vars:
+    k8s_namespace: "spe-platform"
+    registry: "docker.io"
+    image_tag: "latest"
+    replicas:
+      pricing_api: 2
+      admin_dashboard: 1
+      customer_portal: 2
+
+  tasks:
+    - name: Verify kubectl is installed
+      command: kubectl version --client
+      register: kubectl_check
+      changed_when: false
+
+    - name: Check Kubernetes cluster connectivity
+      command: kubectl cluster-info
+      register: cluster_info
+      changed_when: false
+
+    - name: Create namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ k8s_namespace }}"
+            labels:
+              name: "{{ k8s_namespace }}"
+
+    - name: Create ConfigMaps
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ k8s_namespace }}"
+        definition: "{{ lookup('file', 'k8s/configmaps/app-config.yaml') | from_yaml_all }}"
+
+    - name: Create Secrets
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ k8s_namespace }}"
+        definition: "{{ lookup('file', 'k8s/secrets/app-secrets.yaml') | from_yaml_all }}"
+
+    - name: Create RBAC
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ k8s_namespace }}"
+        definition: "{{ lookup('file', 'k8s/rbac/rbac.yaml') | from_yaml_all }}"
+
+    - name: Deploy applications
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ k8s_namespace }}"
+        definition: "{{ lookup('file', 'k8s/deployments/app-deployments.yaml') | from_yaml_all }}"
+
+    - name: Deploy ML Trainer CronJob
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ k8s_namespace }}"
+        definition: "{{ lookup('file', 'k8s/deployments/ml-trainer-cronjob.yaml') | from_yaml_all }}"
+
+    - name: Create Services
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ k8s_namespace }}"
+        definition: "{{ lookup('file', 'k8s/services/app-services.yaml') | from_yaml_all }}"
+
+    - name: Apply Network Policies
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ k8s_namespace }}"
+        definition: "{{ lookup('file', 'k8s/policies/network-policy.yaml') | from_yaml_all }}"
+
+    - name: Create Ingress
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ k8s_namespace }}"
+        definition: "{{ lookup('file', 'k8s/ingress/ingress.yaml') | from_yaml_all }}"
+
+    - name: Wait for deployments to be ready
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        namespace: "{{ k8s_namespace }}"
+        wait: yes
+        wait_condition:
+          type: Progressing
+          status: "True"
+          reason: NewReplicaSetAvailable
+        wait_sleep: 5
+        wait_timeout: 300
+
+    - name: Get deployment status
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        namespace: "{{ k8s_namespace }}"
+      register: deployments
+
+    - name: Display deployment status
+      debug:
+        msg: |
+          Deployments in {{ k8s_namespace }}:
+          {% for deployment in deployments.resources %}
+          - {{ deployment.metadata.name }}: {{ deployment.status.readyReplicas | default(0) }}/{{ deployment.spec.replicas }} replicas ready
+          {% endfor %}
+
+    - name: Get services
+      kubernetes.core.k8s_info:
+        kind: Service
+        namespace: "{{ k8s_namespace }}"
+      register: services
+
+    - name: Display service endpoints
+      debug:
+        msg: |
+          Services in {{ k8s_namespace }}:
+          {% for service in services.resources %}
+          - {{ service.metadata.name }}: {{ service.spec.ports[0].port }}
+          {% endfor %}

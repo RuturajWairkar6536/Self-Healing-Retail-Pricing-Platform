@@ -1,0 +1,19 @@
+{
+  "carts": {
+    "customer_session": {
+      "items": [],
+      "total_items": 0,
+      "total_price": 0.0
+    },
+    "user_cust_1": {
+      "items": [],
+      "total_items": 0,
+      "total_price": 0.0
+    },
+    "user_cust_2": {
+      "items": [],
+      "total_items": 0,
+      "total_price": 0.0
+    }
+  }
+}

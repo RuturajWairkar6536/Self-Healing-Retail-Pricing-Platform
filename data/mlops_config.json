@@ -1,0 +1,10 @@
+{
+  "auto_retrain_enabled": true,
+  "retrain_schedule_hours": 24,
+  "min_data_samples_for_retrain": 1000,
+  "performance_threshold": 10.0,
+  "keep_model_versions": 5,
+  "alert_email": null,
+  "last_retrain": "2026-05-13T17:14:16.284038",
+  "next_scheduled_retrain": "2026-05-14T17:14:16.284040"
+}

@@ -1,0 +1,106 @@
+graph LR
+    subgraph Input["INPUT LAYER"]
+        HD["clean_demand_data.csv<br/>(2009-2010 historical)"]
+        DProd["data/products.csv<br/>(8 demo products)"]
+    end
+
+    subgraph Training["TRAINING & MODEL"]
+        RT["retrain.py Pipeline"]
+        RT1["1. Load old data"]
+        RT2["2. Load new sales"]
+        RT3["3. Merge & validate"]
+        RT4["4. Train RandomForest"]
+        RT5["5. Evaluate metrics"]
+        RT6["6. Save model"]
+        RT1 --> RT2
+        RT2 --> RT3
+        RT3 --> RT4
+        RT4 --> RT5
+        RT5 --> RT6
+        HD -.->|seed data| RT1
+        DProd -.->|for context| RT2
+    end
+
+    subgraph Model["DEPLOYED MODEL"]
+        PKL["pricing_model.pkl<br/>RandomForest<br/>f(Price, dow, month) → demand"]
+    end
+
+    RT6 -->|saves| PKL
+
+    subgraph Flask["FLASK REST API<br/>http://0.0.0.0:5001"]
+        API1["GET /health"]
+        API2["POST /optimize<br/>price,day,month"]
+        API3["GET /products"]
+        API4["POST /apply_price"]
+        API5["POST /checkout"]
+        API6["POST /trigger_retrain"]
+        API7["GET /analytics"]
+    end
+
+    PKL -.->|model.predict| API2
+    PKL -.->|model.predict| API3
+
+    subgraph DataFiles["DATA PERSISTENCE"]
+        CSVProd["products.csv"]
+        CSVInv["inventory.csv"]
+        CSVOrd["orders.csv"]
+        CSVSales["sales_history.csv"]
+        CSVPrice["price_history.csv"]
+        JSONCart["cart.json"]
+    end
+
+    API3 -->|reads| CSVProd
+    API3 -->|writes| CSVProd
+    API4 -->|updates price| CSVProd
+    API4 -->|logs| CSVPrice
+    API5 -->|decrements stock| CSVProd
+    API5 -->|updates| CSVInv
+    API5 -->|appends| CSVOrd
+    API5 -->|appends| CSVSales
+    API2 -->|used for| CSVPrice
+    JSONCart -.->|session storage| API5
+
+    subgraph AdminUI["ADMIN DASHBOARD<br/>Streamlit:8503"]
+        ADMIN1["Optimizer Tab<br/>Input: product, price, day<br/>Show: curve, metrics"]
+        ADMIN2["Products Tab<br/>View all products<br/>Add new product"]
+        ADMIN3["Analytics Tab<br/>Revenue, bestsellers<br/>Low stock, trends"]
+        ADMIN4["Retrain Tab<br/>Trigger retraining<br/>Check status"]
+    end
+
+    ADMIN1 -->|POST| API2
+    ADMIN1 -->|POST| API4
+    ADMIN2 -->|GET/POST| API3
+    ADMIN3 -->|GET| API7
+    ADMIN4 -->|POST| API6
+    ADMIN4 -->|GET| API6
+
+    subgraph CustomerUI["CUSTOMER STORE<br/>Streamlit:8504"]
+        CUST1["Browse Products<br/>Search, filter"]
+        CUST2["Product Details<br/>Images, price, stock"]
+        CUST3["Shopping Cart<br/>Add/remove items"]
+        CUST4["Checkout<br/>Place order"]
+    end
+
+    CUST1 -->|GET| API3
+    CUST2 -->|GET| API3
+    CUST3 -->|POST| API5
+    CUST4 -->|POST| API5
+
+    subgraph Output["OUTPUT & FEEDBACK"]
+        ORD["orders.csv<br/>(new orders)"]
+        SALES["sales_history.csv<br/>(new sales data)"]
+    end
+
+    API5 -->|creates| ORD
+    API5 -->|creates| SALES
+    ORD -.->|feeds back| Training
+    SALES -.->|feeds back| Training
+
+    style Input fill:#fff3e0
+    style Training fill:#f3e5f5
+    style Model fill:#fff9c4
+    style Flask fill:#e3f2fd
+    style DataFiles fill:#f1f8e9
+    style AdminUI fill:#e8f5e9
+    style CustomerUI fill:#fce4ec
+    style Output fill:#ffebee

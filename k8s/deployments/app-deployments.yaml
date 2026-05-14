@@ -1,0 +1,280 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pricing-api
+  namespace: spe-platform
+  labels:
+    app: pricing-api
+    version: v1
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: pricing-api
+  template:
+    metadata:
+      labels:
+        app: pricing-api
+        version: v1
+    spec:
+      serviceAccountName: pricing-api-sa
+      containers:
+      - name: pricing-api
+        image: IMAGE_REGISTRY/spe-platform:pricing-api-IMAGE_TAG
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5001
+          name: http
+          protocol: TCP
+        env:
+        - name: FLASK_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: pricing-api-config
+              key: FLASK_ENV
+        - name: PYTHONUNBUFFERED
+          valueFrom:
+            configMapKeyRef:
+              name: pricing-api-config
+              key: PYTHONUNBUFFERED
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: pricing-api-secrets
+              key: DATABASE_URL
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: pricing-api-secrets
+              key: REDIS_URL
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5001
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        volumeMounts:
+        - name: app-data
+          mountPath: /app/data
+        - name: app-logs
+          mountPath: /app/logs
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: app-data
+        emptyDir: {}
+      - name: app-logs
+        emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - pricing-api
+              topologyKey: kubernetes.io/hostname
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-dashboard
+  namespace: spe-platform
+  labels:
+    app: admin-dashboard
+    version: v1
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: admin-dashboard
+  template:
+    metadata:
+      labels:
+        app: admin-dashboard
+        version: v1
+    spec:
+      serviceAccountName: admin-dashboard-sa
+      containers:
+      - name: admin-dashboard
+        image: IMAGE_REGISTRY/spe-platform:admin-IMAGE_TAG
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8503
+          name: http
+          protocol: TCP
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: API_URL
+          value: "http://pricing-api:5001"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /_stcore/health
+            port: 8503
+          initialDelaySeconds: 45
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /_stcore/health
+            port: 8503
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          failureThreshold: 2
+        volumeMounts:
+        - name: app-data
+          mountPath: /app/data
+        - name: streamlit-config
+          mountPath: /root/.streamlit
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: app-data
+        emptyDir: {}
+      - name: streamlit-config
+        configMap:
+          name: streamlit-config
+          items:
+          - key: config.toml
+            path: config.toml
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customer-portal
+  namespace: spe-platform
+  labels:
+    app: customer-portal
+    version: v1
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: customer-portal
+  template:
+    metadata:
+      labels:
+        app: customer-portal
+        version: v1
+    spec:
+      serviceAccountName: customer-portal-sa
+      containers:
+      - name: customer-portal
+        image: IMAGE_REGISTRY/spe-platform:customer-IMAGE_TAG
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8504
+          name: http
+          protocol: TCP
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: API_URL
+          value: "http://pricing-api:5001"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /_stcore/health
+            port: 8504
+          initialDelaySeconds: 45
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /_stcore/health
+            port: 8504
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          failureThreshold: 2
+        volumeMounts:
+        - name: app-data
+          mountPath: /app/data
+        - name: streamlit-config
+          mountPath: /root/.streamlit
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: app-data
+        emptyDir: {}
+      - name: streamlit-config
+        configMap:
+          name: streamlit-config
+          items:
+          - key: config.toml
+            path: config.toml
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - customer-portal
+              topologyKey: kubernetes.io/hostname

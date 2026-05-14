@@ -3,3 +3,8 @@
 *.xlsx
 __pycache__/
 .ipynb_checkpoints/
+logs/
+pricing_model_backup_*.pkl
+venv/
+.codex
+.env

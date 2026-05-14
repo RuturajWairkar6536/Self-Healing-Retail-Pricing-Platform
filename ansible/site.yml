@@ -1,0 +1,152 @@
+---
+- name: SPE Platform Infrastructure Setup
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  vars:
+    docker_version: "24.0"
+    kubernetes_version: "1.28"
+    ansible_python_interpreter: /usr/bin/python3
+    docker_compose_version: "v2.20.2"
+    project_name: "spe-platform"
+    project_user: "spe-admin"
+    project_group: "spe-admin"
+    project_path: "/opt/spe-platform"
+
+  pre_tasks:
+    - name: Display system information
+      debug:
+        msg: |
+          System: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Hostname: {{ ansible_hostname }}
+          CPU cores: {{ ansible_processor_vcpus }}
+          Total memory: {{ ansible_memtotal_mb }} MB
+
+  tasks:
+    - include_role:
+        name: common
+
+    - include_role:
+        name: docker
+
+    - include_role:
+        name: kubernetes
+
+    - name: Create project user
+      user:
+        name: "{{ project_user }}"
+        shell: /bin/bash
+        home: "/home/{{ project_user }}"
+        createhome: yes
+        state: present
+
+    - name: Add project user to docker group
+      user:
+        name: "{{ project_user }}"
+        groups: docker
+        append: yes
+
+    - name: Create project directory
+      file:
+        path: "{{ project_path }}"
+        state: directory
+        owner: "{{ project_user }}"
+        group: "{{ project_group }}"
+        mode: '0755'
+
+    - include_role:
+        name: jenkins
+
+    - name: Allow Docker ports
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - '5001'
+        - '8503'
+        - '8504'
+        - '5432'
+        - '6379'
+      ignore_errors: yes
+
+    - name: Allow Jenkins port
+      ufw:
+        rule: allow
+        port: '8080'
+        proto: tcp
+      ignore_errors: yes
+
+    - name: Allow Kubernetes ports
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - '6443'
+        - '8001'
+      ignore_errors: yes
+
+    - name: Create docker-compose systemd service
+      copy:
+        content: |
+          [Unit]
+          Description=SPE Platform Docker Compose Service
+          Requires=docker.service
+          After=docker.service
+
+          [Service]
+          Type=simple
+          User={{ project_user }}
+          WorkingDirectory={{ project_path }}
+          ExecStart=/usr/local/bin/docker-compose up
+          ExecStop=/usr/local/bin/docker-compose down
+          Restart=on-failure
+          RestartSec=10
+
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/spe-platform.service
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
+    - include_role:
+        name: monitoring
+
+  handlers:
+    - name: Restart Docker service
+      systemd:
+        name: docker
+        state: restarted
+
+    - name: Restart Jenkins service
+      systemd:
+        name: jenkins
+        state: restarted
+
+  post_tasks:
+    - name: Display setup summary
+      debug:
+        msg: |
+          ================================
+          SPE Platform Setup Complete!
+          ================================
+          Docker: {{ docker_version_output.stdout }}
+          kubectl: Installed
+          Jenkins: Installed and running on port 8080
+          Project path: {{ project_path }}
+          Project user: {{ project_user }}
+          ================================
+          
+          Next steps:
+          1. Clone the project repository
+          2. Update docker-compose.yml with your credentials
+          3. Run: docker-compose up -d
+          4. Configure Jenkins pipelines
+          5. Deploy to Kubernetes

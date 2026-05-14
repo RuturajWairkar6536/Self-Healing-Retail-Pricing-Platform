@@ -1,0 +1,33 @@
+---
+# Common system packages and updates
+- name: Update system packages
+  package:
+    name: "*"
+    state: latest
+  when: ansible_distribution in ['Ubuntu', 'Debian']
+  ignore_errors: yes
+  register: apt_update_result
+
+- name: Display update status
+  debug:
+    msg: "Package update completed with status: {{ apt_update_result.changed }}"
+
+- name: Install required system packages
+  package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - curl
+    - wget
+    - git
+    - vim
+    - htop
+    - net-tools
+    - apt-transport-https
+    - ca-certificates
+    - gnupg
+    - lsb-release
+    - python3-pip
+    - python3-venv
+    - jq
+    - unzip

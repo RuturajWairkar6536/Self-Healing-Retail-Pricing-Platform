@@ -1,0 +1,13 @@
+{
+  "platform_title": "AI-Powered Smart Ecommerce Pricing Platform",
+  "currency": "INR",
+  "optimizer": {
+    "price_range_pct": 0.2,
+    "steps": 25,
+    "apply_threshold_pct": 5.0
+  },
+  "store": {
+    "session_id": "customer_session",
+    "low_stock_default_threshold": 10
+  }
+}

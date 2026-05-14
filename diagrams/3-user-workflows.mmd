@@ -1,0 +1,155 @@
+graph TB
+    subgraph AdminFlow["👨‍💼 ADMIN WORKFLOW (COMPLETE FLOW)"]
+        A1["Admin opens Streamlit<br/>Optimizer Tab"]
+        A2["Selects product P001<br/>Enters: price=₹3240<br/>competitor_price=₹3000<br/>day=2, month=5"]
+        A3["Clicks 'Run AI Optimizer'"]
+        A4["POST /optimize<br/>sends price, day, month"]
+        A5["Flask receives /optimize"]
+        A6["Calls predict_demand<br/>for current price"]
+        A7["Model.predict<br/>returns demand=1.96"]
+        A8["Runs optimize_price<br/>loops 25 prices<br/>(80% to 120%)"]
+        A9["For each price:<br/>demand = model.predict<br/>revenue = price × demand<br/>tracks best"]
+        A10["compare_prices<br/>improvement = 20%<br/>decision = Apply"]
+        A11["Returns optimization<br/>result to Streamlit"]
+        A12["Streamlit shows:<br/>Current: ₹3240<br/>Best: ₹3888<br/>Improvement: 20%<br/>Chart: price-revenue curve"]
+        A13["Admin clicks<br/>'Apply optimized price'"]
+        A14["POST /apply_price<br/>product_id=P001<br/>new_price=₹3888"]
+        A15["Flask updates<br/>products.csv<br/>P001: ₹3240 → ₹3888"]
+        A16["Appends price_history.csv<br/>timestamp, product_id<br/>old_price, new_price<br/>reason, decision<br/>predicted_demand<br/>revenue_gain_pct"]
+        A17["Success response<br/>Applied: ₹3240→₹3888"]
+        A18["Admin product page<br/>refreshes<br/>Shows new price<br/>for customers"]
+        
+        A1 --> A2
+        A2 --> A3
+        A3 --> A4
+        A4 --> A5
+        A5 --> A6
+        A6 --> A7
+        A7 --> A8
+        A8 --> A9
+        A9 --> A10
+        A10 --> A11
+        A11 --> A12
+        A12 --> A13
+        A13 --> A14
+        A14 --> A15
+        A15 --> A16
+        A16 --> A17
+        A17 --> A18
+    end
+
+    subgraph CustomerFlow["🛍️ CUSTOMER WORKFLOW (COMPLETE FLOW)"]
+        C1["Customer opens Store<br/>Streamlit"]
+        C2["GET /health<br/>checks API online"]
+        C3["GET /products<br/>fetches all products"]
+        C4["Model.predict called<br/>per product for AI fields<br/>(ai_recommended_price)"]
+        C5["Displays products<br/>P001: ₹3888 (new price)<br/>AI-updated badge"]
+        C6["Customer clicks 'Browse'"]
+        C7["Searches 'Wireless'<br/>GET /products?search=wireless"]
+        C8["Filters Electronics<br/>GET /categories<br/>returns available"]
+        C9["Sees P001 product card<br/>₹3888, 79 in stock"]
+        C10["Clicks 'View details'<br/>GET /product/P001"]
+        C11["Shows full product page<br/>Image, description<br/>Stock: 79, Price: ₹3888<br/>AI recommendation shown"]
+        C12["Enters qty=1<br/>Clicks 'Add to cart'"]
+        C13["POST /cart/add<br/>session_id=customer_session<br/>product_id=P001<br/>quantity=1"]
+        C14["Flask loads cart.json<br/>Adds item<br/>{product_id, name, qty, price}<br/>recalculates total"]
+        C15["Cart saved to cart.json<br/>Returns updated cart"]
+        C16["Shows: Cart(1) ₹3888"]
+        C17["Customer browses more<br/>Adds 2 more items"]
+        C18["Cart now has 3 items<br/>Total: ₹5000"]
+        C19["Clicks Cart tab"]
+        C20["GET /cart<br/>returns session cart"]
+        C21["Shows all 3 items<br/>Can remove any"]
+        C22["Clicks 'Checkout'"]
+        C23["Modal: Enter name 'Alice'<br/>Shows Total: ₹5000<br/>Clicks 'Place Order'"]
+        C24["POST /checkout<br/>session_id, customer_name"]
+        C25["Server validates:<br/>All items in stock?<br/>YES"]
+        C26["Creates order_id<br/>ORD-20260512-153045"]
+        C27["For each item:<br/>- Decrement stock<br/>- Create order record<br/>- Create sales record"]
+        C28["Appends orders.csv<br/>order_id, customer_name<br/>product_id, qty, price<br/>revenue, day_of_week<br/>month"]
+        C29["Appends sales_history.csv<br/>StockCode, date<br/>day_of_week, month<br/>demand=qty, Price"]
+        C30["Updates products.csv<br/>stock reduced<br/>inventory.csv updated"]
+        C31["Clears cart.json<br/>for session"]
+        C32["Returns success<br/>Order ID: ORD-...<br/>Total: ₹5000<br/>Shows balloons 🎉"]
+        C33["New sales data in<br/>sales_history.csv<br/>Ready for retrain"]
+
+        C1 --> C2
+        C2 --> C3
+        C3 --> C4
+        C4 --> C5
+        C5 --> C6
+        C6 --> C7
+        C7 --> C8
+        C8 --> C9
+        C9 --> C10
+        C10 --> C11
+        C11 --> C12
+        C12 --> C13
+        C13 --> C14
+        C14 --> C15
+        C15 --> C16
+        C16 --> C17
+        C17 --> C18
+        C18 --> C19
+        C19 --> C20
+        C20 --> C21
+        C21 --> C22
+        C22 --> C23
+        C23 --> C24
+        C24 --> C25
+        C25 --> C26
+        C26 --> C27
+        C27 --> C28
+        C28 --> C29
+        C29 --> C30
+        C30 --> C31
+        C31 --> C32
+        C32 --> C33
+    end
+
+    subgraph RetrainFlow["🔄 RETRAIN WORKFLOW (COMPLETE FLOW)"]
+        R1["Admin in Retraining Tab"]
+        R2["Clicks 'Trigger Retraining'<br/>Default path:<br/>data/sales_history.csv"]
+        R3["POST /trigger_retrain<br/>new_data=data/sales_history.csv"]
+        R4["Flask checks:<br/>Is retrain already running?<br/>NO"]
+        R5["Spawns daemon Thread<br/>subprocess.run<br/>$ python retrain.py<br/>  --new_data data/sales_history.csv"]
+        R6["retrain.py starts"]
+        R7["Step 1: Load old data<br/>clean_demand_data.csv<br/>~1000 rows<br/>2009-2010"]
+        R8["Step 2: Load new data<br/>data/sales_history.csv<br/>~50 rows<br/>2026 sales"]
+        R9["Step 3: Preprocess<br/>Validate columns<br/>Parse dates<br/>Extract day_of_week, month<br/>Aggregate if needed"]
+        R10["Step 4: Merge<br/>old + new"]
+        R11["Step 5: Train<br/>RandomForest<br/>features=[Price, dow, month]<br/>target=demand<br/>n_estimators=100<br/>max_depth=10"]
+        R12["Step 6: Evaluate<br/>Test set (20%)<br/>Compute MAE, R2<br/>new_mae=2.5, new_r2=0.85"]
+        R13["Step 7: Compare<br/>with existing model<br/>old_mae=2.3, old_r2=0.86<br/>new_mae > old_mae<br/>should_save=False"]
+        R14["Log warning:<br/>New model did not beat<br/>existing model<br/>Keeping existing"]
+        R15["Step 8: Exit<br/>Dry run completed<br/>Old model kept<br/>Log: logs/retrain_TIMESTAMP.log"]
+        R16["Background thread<br/>captures output"]
+        R17["Thread checks:<br/>success? NO<br/>But this is OK<br/>_retrain_state updated"]
+        R18["Admin clicks<br/>'Refresh Status'<br/>GET /retrain_status"]
+        R19["Returns:<br/>running=False<br/>last_status=failed<br/>last_log tail"]
+        R20["Shows admin:<br/>❌ Retrain did not improve<br/>model kept existing"]
+
+        R1 --> R2
+        R2 --> R3
+        R3 --> R4
+        R4 --> R5
+        R5 --> R6
+        R6 --> R7
+        R7 --> R8
+        R8 --> R9
+        R9 --> R10
+        R10 --> R11
+        R11 --> R12
+        R12 --> R13
+        R13 --> R14
+        R14 --> R15
+        R15 --> R16
+        R16 --> R17
+        R17 --> R18
+        R18 --> R19
+        R19 --> R20
+    end
+
+    style AdminFlow fill:#e8f5e9
+    style CustomerFlow fill:#fce4ec
+    style RetrainFlow fill:#e0f2f1

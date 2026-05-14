@@ -1,0 +1,49 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: spe-ingress
+  namespace: spe-platform
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/rate-limit: "10"
+spec:
+  tls:
+  - hosts:
+    - api.spe-platform.local
+    - admin.spe-platform.local
+    - shop.spe-platform.local
+    secretName: spe-tls-secret
+  rules:
+  - host: api.spe-platform.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: pricing-api
+            port:
+              number: 5001
+  - host: admin.spe-platform.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: admin-dashboard
+            port:
+              number: 8503
+  - host: shop.spe-platform.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: customer-portal
+            port:
+              number: 8504

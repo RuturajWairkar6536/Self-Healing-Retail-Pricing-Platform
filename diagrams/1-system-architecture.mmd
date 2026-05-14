@@ -1,0 +1,222 @@
+graph TB
+    subgraph Startup["🚀 Startup & Initialization"]
+        A1["app.py starts<br/>Flask@5001"]
+        A2["load_model<br/>pricing_model.pkl"]
+        A3["ensure_data_files<br/>Create data/ dirs"]
+        A1 --> A2
+        A1 --> A3
+        A2 -.->|if missing| A4["❌ FileNotFoundError"]
+        A3 -.->|creates if absent| A5["orders.csv<br/>sales_history.csv<br/>price_history.csv<br/>cart.json<br/>config.json"]
+    end
+
+    subgraph HistoricalData["📊 Historical Training Data"]
+        HD1["clean_demand_data.csv<br/>StockCode, date, demand<br/>Price, day_of_week, month<br/>(2009-2010 ~1000 rows)"]
+    end
+
+    subgraph Model["🧠 ML Model Core"]
+        M1["RandomForest<br/>pricing_model.pkl"]
+        M2["Input: Price, day_of_week, month<br/>Output: predicted_demand"]
+        M1 -.-> M2
+    end
+
+    subgraph FlaskAPI["🌐 Flask REST API (app.py)"]
+        API_Health["GET /health<br/>Returns model status<br/>& file presence"]
+        API_Products["GET/POST /products<br/>List/Add products"]
+        API_ProductID["GET /product/product_id<br/>Get single product"]
+        API_Categories["GET /categories<br/>Distinct categories"]
+        API_Optimize["POST /optimize<br/>Run AI optimizer<br/>Input: price, day, month<br/>Returns: best_price, curve"]
+        API_ApplyPrice["POST /apply_price<br/>Update product price<br/>Logs to price_history.csv"]
+        API_Cart["GET /cart<br/>Load session cart"]
+        API_CartAdd["POST /cart/add<br/>Add item to cart"]
+        API_CartRemove["POST /cart/remove<br/>Remove from cart"]
+        API_Checkout["POST /checkout<br/>Place order, write orders.csv<br/>& sales_history.csv"]
+        API_Analytics["GET /analytics<br/>Revenue, bestsellers<br/>low stock, trends"]
+        API_Reload["POST /reload_model<br/>Reload model from disk"]
+        API_Retrain["POST /trigger_retrain<br/>Start background retrain<br/>Uses /new_data param"]
+        API_RetrainStatus["GET /retrain_status<br/>Check retrain progress"]
+    end
+
+    subgraph DataPersistence["💾 Data Files (CSV/JSON)"]
+        DP1["products.csv<br/>product_id, stock_code<br/>product_name, category<br/>current_price, stock, active<br/>(8 demo products)"]
+        DP2["inventory.csv<br/>product_id, stock<br/>last_updated<br/>low_stock_threshold"]
+        DP3["orders.csv<br/>order_id, customer_name<br/>product_id, quantity_sold<br/>price_at_sale, revenue<br/>day_of_week, month"]
+        DP4["sales_history.csv<br/>StockCode, date<br/>day_of_week, month<br/>demand, Price"]
+        DP5["price_history.csv<br/>timestamp, product_id<br/>old_price, new_price<br/>reason, decision<br/>predicted_demand<br/>revenue_gain_pct"]
+        DP6["cart.json<br/>carts[session_id]<br/>items[], total_price"]
+        DP7["config.json<br/>platform_title"]
+    end
+
+    subgraph AdminUI["👨‍💼 Admin Dashboard<br/>streamlit_app.py:8503"]
+        ADMIN_OPT["Optimizer Tab<br/>📊 Select product<br/>Input: current_price<br/>competitor_price, stock<br/>day, month<br/>View: curve, metrics<br/>Button: Apply optimized price"]
+        ADMIN_PROD["Products Tab<br/>📦 View product table<br/>with AI recommendations<br/>Form: Add new product"]
+        ADMIN_ANALYTICS["Analytics Tab<br/>📈 Revenue, orders, units<br/>Charts: bestsellers,<br/>monthly sales, trends<br/>Low stock alerts"]
+        ADMIN_RETRAIN["Retraining Tab<br/>🔄 Input: new_data path<br/>Button: Trigger retrain<br/>Button: Check status"]
+        ADMIN_OPT -.->|calls| API_Optimize
+        ADMIN_OPT -.->|calls| API_ApplyPrice
+        ADMIN_PROD -.->|calls| API_Products
+        ADMIN_ANALYTICS -.->|calls| API_Analytics
+        ADMIN_RETRAIN -.->|calls| API_Retrain
+        ADMIN_RETRAIN -.->|calls| API_RetrainStatus
+    end
+
+    subgraph CustomerUI["🛍️ Customer Store<br/>streamlit_customer.py:8504"]
+        CUST_HOME["Home Page<br/>Featured 4 products"]
+        CUST_BROWSE["Browse Tab<br/>Search, filter by category<br/>Product cards with<br/>current_price, discount<br/>AI-updated badge"]
+        CUST_DETAIL["Product Detail<br/>Image, description<br/>Stock info, AI recommendation"]
+        CUST_CART["Cart Tab<br/>View items, total<br/>Remove buttons"]
+        CUST_CHECKOUT["Checkout Modal<br/>Customer name<br/>Total amount<br/>Place order button"]
+        CUST_HOME -.->|calls| API_Products
+        CUST_BROWSE -.->|calls| API_Products
+        CUST_BROWSE -.->|calls| API_Categories
+        CUST_DETAIL -.->|calls| API_ProductID
+        CUST_CART -.->|calls| API_Cart
+        CUST_HOME -.->|calls| API_CartAdd
+        CUST_BROWSE -.->|calls| API_CartAdd
+        CUST_DETAIL -.->|calls| API_CartAdd
+        CUST_CART -.->|calls| API_CartRemove
+        CUST_CHECKOUT -.->|calls| API_Checkout
+    end
+
+    subgraph OptimizationFlow["⚡ Optimization Flow (per /optimize call)"]
+        OPT1["predict_demand<br/>Call model.predict"]
+        OPT2["optimize_price loop<br/>25 price points<br/>low=price*(1-20%)<br/>high=price*(1+20%)<br/>for each price:<br/>  demand = predict<br/>  revenue = price * demand<br/>Track best_revenue"]
+        OPT3["compare_prices<br/>improvement% = <br/>(best_revenue - current) / current<br/>if improvement > 5%:<br/>  decision = Apply<br/>else if competitor cheaper:<br/>  decision = Consider Competitive<br/>else:<br/>  decision = Keep"]
+        OPT1 --> OPT2
+        OPT2 --> OPT3
+        OPT1 -.->|uses| M1
+    end
+
+    subgraph CheckoutFlow["🛒 Checkout Flow (/checkout call)"]
+        CO1["Validate cart not empty"]
+        CO2["For each cart item:<br/>- Get product from products.csv<br/>- Check stock >= qty<br/>- Decrement stock"]
+        CO3["Create order record<br/>order_id=ORD-YYYYMMDDHHMMSS"]
+        CO4["Append to orders.csv<br/>with all fields"]
+        CO5["Create sales records<br/>StockCode, date<br/>day_of_week, month<br/>demand=qty, Price=current"]
+        CO6["Append to sales_history.csv"]
+        CO7["Update products.csv<br/>save stock changes"]
+        CO8["Clear cart.json<br/>for session"]
+        CO1 --> CO2
+        CO2 --> CO3
+        CO3 --> CO4
+        CO4 --> CO5
+        CO5 --> CO6
+        CO6 --> CO7
+        CO7 --> CO8
+    end
+
+    subgraph RetrainPipeline["🔄 Retraining Pipeline (retrain.py)"]
+        RT1["Load clean_demand_data.csv<br/>FEATURES=[Price, day_of_week, month]<br/>TARGET=demand"]
+        RT2["Load new_data<br/>(default: data/sales_history.csv)"]
+        RT2A["Accept formats:<br/>- CSV (sales_history)<br/>- CSV (orders)<br/>- Excel (.xlsx)"]
+        RT3["Preprocess new_data<br/>Parse dates, extract dow/month<br/>Group by StockCode+date<br/>Sum quantities → demand<br/>Avg prices"]
+        RT4["Merge old + new<br/>Validate required columns<br/>Concat, clean (dropna)<br/>Filter demand>0, Price>0"]
+        RT5["Train RandomForest<br/>n_estimators=100<br/>max_depth=10<br/>min_samples_split=5<br/>Split 80/20 test"]
+        RT6["Evaluate:<br/>Compute MAE, R2"]
+        RT7["Compare with existing model<br/>if new_mae <= old_mae<br/>OR new_r2 >= old_r2:<br/>  should_save=True<br/>else:<br/>  warn & dry_run"]
+        RT8["Save model<br/>Backup old model<br/>→ pricing_model_backup_TIMESTAMP.pkl<br/>Write new model<br/>→ pricing_model.pkl"]
+        RT9["Logging:<br/>logs/retrain_TIMESTAMP.log"]
+        RT1 --> RT2
+        RT2 --> RT2A
+        RT2 --> RT3
+        RT3 --> RT4
+        RT4 --> RT5
+        RT5 --> RT6
+        RT6 --> RT7
+        RT7 --> RT8
+        RT8 --> RT9
+    end
+
+    subgraph BackgroundRetrain["🧵 Background Retrain (Flask)"]
+        BR1["POST /trigger_retrain<br/>received"]
+        BR2["Check if retrain running<br/>if yes → 409 Conflict"]
+        BR3["Spawn daemon Thread"]
+        BR4["subprocess.run<br/>python retrain.py<br/>--new_data path<br/>timeout=600s"]
+        BR5["Capture stdout/stderr"]
+        BR6["If success:<br/>Reload model<br/>model = load_model"]
+        BR7["Update _retrain_state<br/>running, last_status<br/>last_log"]
+        BR1 --> BR2
+        BR2 --> BR3
+        BR3 --> BR4
+        BR4 --> BR5
+        BR5 --> BR6
+        BR6 --> BR7
+    end
+
+    subgraph ApplyPriceFlow["💰 Apply Price Flow (/apply_price call)"]
+        AP1["POST /apply_price<br/>product_id, new_price"]
+        AP2["Find product in products.csv"]
+        AP3["Update current_price"]
+        AP4["If new_price > original_price<br/>update original_price"]
+        AP5["Save products.csv<br/>→ also updates inventory.csv"]
+        AP6["Append to price_history.csv<br/>timestamp, product_id<br/>old_price, new_price<br/>reason, decision<br/>predicted_demand<br/>revenue_gain_pct"]
+        AP1 --> AP2
+        AP2 --> AP3
+        AP3 --> AP4
+        AP4 --> AP5
+        AP5 --> AP6
+    end
+
+    subgraph SerializeProduct["📦 serialize_product Helper"]
+        SP1["Called by GET /products<br/>and GET /product/id"]
+        SP2["Extract product fields<br/>current_price, stock, active"]
+        SP3["If include_ai=True:<br/>Call build_optimization<br/>with product current_price<br/>day=now.weekday()<br/>month=now.month"]
+        SP4["Add to product JSON:<br/>ai_recommended_price<br/>ai_predicted_demand<br/>ai_revenue_gain_%<br/>ai_decision<br/>discount_%"]
+        SP1 --> SP2
+        SP2 --> SP3
+        SP3 --> SP4
+    end
+
+    subgraph Security["🔐 Security & Optional Features"]
+        SEC1["Optional token protection<br/>env var: RELOAD_TOKEN<br/>header: X-Reload-Token<br/>Protects:<br/>- /reload_model<br/>- /trigger_retrain"]
+        SEC2["No auth on product/cart/checkout<br/>↳ Intended for local/demo only"]
+        SEC3["No concurrent write locks<br/>↳ Risk: race conditions<br/>on CSV writes"]
+    end
+
+    subgraph Testing["🧪 Testing & Validation"]
+        TST1["test_api.py<br/>Smoke tests for:<br/>- /health<br/>- /optimize (basic, extras)<br/>- /optimize edge cases<br/>- /reload_model<br/>- Revenue sanity"]
+        TST2["Pre-compile check:<br/>python -m py_compile<br/>app.py, retrain.py<br/>streamlit_app.py<br/>streamlit_customer.py"]
+        TST3["Run with:<br/>python test_api.py<br/>--url http://127.0.0.1:5001"]
+    end
+
+    subgraph Logs["📋 Logging & State"]
+        LOG1["app.py logging<br/>INFO level<br/>to stdout<br/>(and file if configured)"]
+        LOG2["retrain.py logging<br/>logs/retrain_TIMESTAMP.log<br/>stdout + file"]
+        LOG3["_retrain_state dict<br/>running, last_status<br/>last_log (2000 char tail)"]
+    end
+
+    %% Connect major components
+    Startup --> Model
+    HistoricalData --> RetrainPipeline
+    Model --> FlaskAPI
+    FlaskAPI --> AdminUI
+    FlaskAPI --> CustomerUI
+    FlaskAPI --> DataPersistence
+    AdminUI --> OptimizationFlow
+    AdminUI --> ApplyPriceFlow
+    CustomerUI --> CheckoutFlow
+    CheckoutFlow --> DataPersistence
+    ApplyPriceFlow --> DataPersistence
+    RetrainPipeline --> Model
+    BackgroundRetrain --> RetrainPipeline
+    OptimizationFlow --> SerializeProduct
+    FlaskAPI --> SerializeProduct
+    FlaskAPI --> BackgroundRetrain
+    FlaskAPI --> Security
+    FlaskAPI --> Logs
+
+    style Startup fill:#e1f5ff
+    style Model fill:#fff3e0
+    style FlaskAPI fill:#f3e5f5
+    style AdminUI fill:#e8f5e9
+    style CustomerUI fill:#fce4ec
+    style DataPersistence fill:#fff9c4
+    style OptimizationFlow fill:#ffe0b2
+    style CheckoutFlow fill:#f1f8e9
+    style RetrainPipeline fill:#e0f2f1
+    style BackgroundRetrain fill:#f0f4c3
+    style ApplyPriceFlow fill:#ffccbc
+    style SerializeProduct fill:#b3e5fc
+    style Security fill:#ffcccc
+    style Testing fill:#e0e0e0
+    style Logs fill:#f5f5f5
+    style HistoricalData fill:#ffe082

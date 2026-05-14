@@ -1,0 +1,36 @@
+---
+# Jenkins installation role
+- name: Install Jenkins dependencies
+  package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - openjdk-21-jdk
+    - openjdk-21-jre
+
+- name: Add Jenkins repository key
+  get_url:
+    url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+    dest: /usr/share/keyrings/jenkins-keyring.asc
+    mode: '0644'
+  when: ansible_distribution in ['Ubuntu', 'Debian']
+
+- name: Add Jenkins repository
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/"
+    state: present
+    update_cache: yes
+  when: ansible_distribution in ['Ubuntu', 'Debian']
+
+- name: Install Jenkins
+  package:
+    name: jenkins
+    state: present
+  when: ansible_distribution in ['Ubuntu', 'Debian']
+
+- name: Start and enable Jenkins service
+  systemd:
+    name: jenkins
+    state: started
+    enabled: yes
+    daemon_reload: yes
