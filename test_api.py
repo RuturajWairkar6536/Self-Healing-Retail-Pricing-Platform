@@ -3,8 +3,8 @@ test_api.py — Self-Healing Retail Pricing Platform
 Quick smoke test for all Flask API endpoints.
 
 Usage:
-    python test_api.py               # runs all tests against localhost:5000
-    python test_api.py --url http://x.x.x.x:5000   # custom host
+    python test_api.py               # runs all tests against localhost:5001
+    python test_api.py --url http://x.x.x.x:5001   # custom host
 """
 
 import sys
@@ -199,8 +199,8 @@ def test_revenue_sanity(base_url):
 # =========================
 def main():
     parser = argparse.ArgumentParser(description="Smoke-test the Retail Pricing API.")
-    parser.add_argument("--url", default="http://127.0.0.1:5000",
-                        help="Base URL of the Flask API (default: http://127.0.0.1:5000)")
+    parser.add_argument("--url", default="http://127.0.0.1:5001",
+                        help="Base URL of the Flask API (default: http://127.0.0.1:5001)")
     args = parser.parse_args()
 
     base_url = args.url.rstrip("/")
