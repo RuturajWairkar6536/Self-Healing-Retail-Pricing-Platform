@@ -206,9 +206,15 @@ pipeline {
                             
                             # Apply K8s manifests
                             kubectl apply -f k8s/namespace.yaml || true
+                            kubectl apply -f k8s/rbac/ || true
                             kubectl apply -f k8s/configmaps/ || true
                             kubectl apply -f k8s/secrets/ || true
+                            
+                            # Replace placeholders in deployments and apply
+                            sed -i "s|IMAGE_REGISTRY|${REGISTRY}/${params.DOCKERHUB_NAMESPACE}|g" k8s/deployments/app-deployments.yaml
+                            sed -i "s|IMAGE_TAG|${IMAGE_TAG}|g" k8s/deployments/app-deployments.yaml
                             kubectl apply -f k8s/deployments/ || true
+                            
                             kubectl apply -f k8s/services/ || true
                             kubectl apply -f k8s/ingress/ || true
                             

@@ -1,6 +1,10 @@
 # Admin Dashboard Dockerfile
 FROM python:3.11-slim
 
+# Create a non-root user for security
+RUN groupadd -g 1000 spegroup && \
+    useradd -u 1000 -g spegroup -m speuser
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -8,16 +12,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --default-timeout=1000 -r requirements.txt
+RUN pip install --no-cache-dir --default-timeout=1000 -r requirements.txt
 
 COPY streamlit_app.py .
 COPY requirements.txt .
 COPY data/ ./data/
-RUN mkdir -p ./logs
+RUN mkdir -p ./logs && chown -R speuser:spegroup /app
 
-# Create Streamlit config directory
-RUN mkdir -p /root/.streamlit
-COPY streamlit/config.toml /root/.streamlit/config.toml
+# Create Streamlit config directory in user's home
+RUN mkdir -p /home/speuser/.streamlit && chown -R speuser:spegroup /home/speuser/.streamlit
+COPY streamlit/config.toml /home/speuser/.streamlit/config.toml
+
+# Switch to non-root user
+USER speuser
 
 EXPOSE 8503
 ENV PYTHONUNBUFFERED=1
