@@ -57,6 +57,29 @@ logger.addHandler(console_handler)
 
 app = Flask(__name__)
 
+# =========================
+# VAULT SECRET INTEGRATION
+# =========================
+def get_vault_secret(path, key_name):
+    """Retrieves a secret from HashiCorp Vault via API."""
+    vault_url = os.environ.get("VAULT_ADDR", "http://vault:8200")
+    vault_token = os.environ.get("VAULT_TOKEN", "spe-dev-root")
+    
+    try:
+        url = f"{vault_url}/v1/secret/data/{path}"
+        headers = {"X-Vault-Token": vault_token}
+        response = requests.get(url, headers=headers, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            return data["data"]["data"].get(key_name)
+        return None
+    except Exception as e:
+        logger.warning(f"Vault retrieval failed: {e}. Falling back to env vars.")
+        return None
+
+# Example usage for security evaluation
+JWT_SECRET = get_vault_secret("spe-platform/config", "JWT_SECRET_KEY") or "fallback-secret"
+
 
 @app.before_request
 def start_request_timer():
