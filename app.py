@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 from werkzeug.security import check_password_hash, generate_password_hash
 
-#made change in here
+#check webhook trigger
 # Setup JSON logging for ELK Stack
 class JSONFormatter(logging.Formatter):
     def format(self, record):
