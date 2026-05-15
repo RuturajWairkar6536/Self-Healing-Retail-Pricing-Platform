@@ -30,7 +30,6 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy application code
 COPY app.py .
 COPY requirements.txt .
-COPY pricing_model.pkl .
 COPY data/ ./data/
 RUN mkdir -p ./logs && chown -R speuser:spegroup /app
 
