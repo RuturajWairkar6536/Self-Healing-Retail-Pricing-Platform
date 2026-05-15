@@ -55,6 +55,10 @@ console_handler = logging.StreamHandler()
 console_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
 logger.addHandler(console_handler)
 
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 app = Flask(__name__)
 
 # =========================
@@ -79,6 +83,38 @@ def get_vault_secret(path, key_name):
 
 # Example usage for security evaluation
 JWT_SECRET = get_vault_secret("spe-platform/config", "JWT_SECRET_KEY") or "fallback-secret"
+
+# =========================
+# EMAIL NOTIFICATION LOGIC
+# =========================
+def send_app_email(subject, body, to_email):
+    """Sends a real email using SMTP credentials from Vault/Env."""
+    smtp_server = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+    smtp_port = int(os.environ.get("SMTP_PORT", 587))
+    smtp_user = get_vault_secret("spe-platform/config", "SMTP_USER") or os.environ.get("SMTP_USER")
+    smtp_pass = get_vault_secret("spe-platform/config", "SMTP_PASS") or os.environ.get("SMTP_PASS")
+
+    if not smtp_user or not smtp_pass:
+        logger.info(f"Skipping real email to {to_email} (SMTP credentials not in Vault).")
+        return False
+
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = smtp_user
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.send_message(msg)
+        server.quit()
+        logger.info(f"Successfully sent email to {to_email}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send email: {e}")
+        return False
 
 
 @app.before_request
@@ -700,6 +736,12 @@ def checkout():
         save_cart(session_id, {"items": [], "total_items": 0, "total_price": 0.0})
 
         total = round(sum(row["revenue"] for row in order_rows), 2)
+        
+        # Send real confirmation email
+        email_subject = f"Order Confirmation - {order_id}"
+        email_body = f"Hello {customer_name},\n\nYour order has been placed successfully!\n\nOrder ID: {order_id}\nTotal Amount: ₹{total:.2f}\nItems: {sum(row['quantity_sold'] for row in order_rows)}\n\nThank you for shopping at Smart Store!"
+        send_app_email(email_subject, email_body, customer_email)
+
         return jsonify({
             "status": "success",
             "order_id": order_id,

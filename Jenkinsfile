@@ -246,9 +246,29 @@ pipeline {
         }
         success {
             echo "✓ Pipeline executed successfully!"
+            script {
+                try {
+                    mail bcc: '', body: "Build ${env.BUILD_NUMBER} of ${env.JOB_NAME} was successful.\n\nMore info: ${env.BUILD_URL}", 
+                         cc: '', from: 'jenkins@spe-platform.com', replyTo: '', 
+                         subject: "SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}", 
+                         to: "ruturajwairkar@gmail.com"
+                } catch (Exception e) {
+                    echo "Email notification skipped (SMTP not configured in Jenkins System): ${e.message}"
+                }
+            }
         }
         failure {
             echo "✗ Pipeline failed. Check logs for details."
+            script {
+                try {
+                    mail bcc: '', body: "Build ${env.BUILD_NUMBER} of ${env.JOB_NAME} FAILED.\n\nCheck logs: ${env.BUILD_URL}console", 
+                         cc: '', from: 'jenkins@spe-platform.com', replyTo: '', 
+                         subject: "FAILURE: ${env.JOB_NAME} #${env.BUILD_NUMBER}", 
+                         to: "ruturajwairkar@gmail.com"
+                } catch (Exception e) {
+                    echo "Email notification skipped (SMTP not configured in Jenkins System): ${e.message}"
+                }
+            }
         }
     }
 }
