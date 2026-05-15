@@ -191,11 +191,11 @@ pipeline {
                     withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
                         sh '''
                             # Check if kubectl is available
-                            if ! command -v kubectl &> /dev/null; then
+                            if ! command -v kubectl > /dev/null 2>&1; then
                                 echo "kubectl not found. Installing..."
-                                curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" 2>/dev/null
+                                curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
                                 chmod +x kubectl
-                                sudo mv kubectl /usr/local/bin/
+                                mv kubectl /usr/local/bin/
                             fi
                             
                             export KUBECONFIG=$KUBECONFIG_FILE
