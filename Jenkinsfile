@@ -189,16 +189,16 @@ pipeline {
             steps {
                 script {
                     withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
-                        sh '''
+                        sh """
                             # Check if kubectl is available
                             if ! command -v kubectl > /dev/null 2>&1; then
                                 echo "kubectl not found. Installing..."
-                                curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+                                curl -LO "https://dl.k8s.io/release/\$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
                                 chmod +x kubectl
                                 mv kubectl /usr/local/bin/
                             fi
                             
-                            export KUBECONFIG=$KUBECONFIG_FILE
+                            export KUBECONFIG=\$KUBECONFIG_FILE
                             echo "Deploying to Kubernetes..."
                             
                             # Create namespace
@@ -226,7 +226,7 @@ pipeline {
                             echo "Deployment Status:"
                             kubectl get pods -n spe-platform
                             kubectl get services -n spe-platform
-                        '''
+                        """
                     }
                 }
             }
