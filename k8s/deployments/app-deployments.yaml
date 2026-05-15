@@ -26,7 +26,7 @@ spec:
       serviceAccountName: pricing-api-sa
       containers:
       - name: pricing-api
-        image: IMAGE_REGISTRY/spe-platform:pricing-api-IMAGE_TAG
+        image: docker.io/ruturajwairkar/spe-platform:pricing-api-latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5001
@@ -132,7 +132,7 @@ spec:
       serviceAccountName: admin-dashboard-sa
       containers:
       - name: admin-dashboard
-        image: IMAGE_REGISTRY/spe-platform:admin-IMAGE_TAG
+        image: docker.io/ruturajwairkar/spe-platform:admin-latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8503
@@ -168,12 +168,12 @@ spec:
         - name: app-data
           mountPath: /app/data
         - name: streamlit-config
-          mountPath: /root/.streamlit
+          mountPath: /home/speuser/.streamlit
         securityContext:
           runAsNonRoot: true
           runAsUser: 1000
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: false
           capabilities:
             drop:
             - ALL
@@ -212,7 +212,7 @@ spec:
       serviceAccountName: customer-portal-sa
       containers:
       - name: customer-portal
-        image: IMAGE_REGISTRY/spe-platform:customer-IMAGE_TAG
+        image: docker.io/ruturajwairkar/spe-platform:customer-latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8504
@@ -248,12 +248,12 @@ spec:
         - name: app-data
           mountPath: /app/data
         - name: streamlit-config
-          mountPath: /root/.streamlit
+          mountPath: /home/speuser/.streamlit
         securityContext:
           runAsNonRoot: true
           runAsUser: 1000
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: false
           capabilities:
             drop:
             - ALL
@@ -278,3 +278,4 @@ spec:
                   values:
                   - customer-portal
               topologyKey: kubernetes.io/hostname
+
