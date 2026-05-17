@@ -279,7 +279,7 @@ with tabs[1]:
         c4, c5, c6, c7 = st.columns(4)
         price = c4.number_input("Current price", min_value=1.0, value=499.0, step=1.0)
         original = c5.number_input("Original price", min_value=1.0, value=699.0, step=1.0)
-        competitor = c6.number_input("Competitor price", min_value=0.0, value=469.0, step=1.0)
+        competitor = c6.number_input("Competitor price", min_value=0.0, value=469.0, step=1.0, key="add_product_competitor")
         stock_qty = c7.number_input("Stock", min_value=0, value=25, step=1)
         image_url = st.text_input("Image URL", value="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600")
 

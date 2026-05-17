@@ -20,6 +20,14 @@
       "password_hash": "scrypt:32768:8:1$XFNae1rLqXqESxAy$8ddb4b2e698daa65b9f31b53cbfa7c58ccca9c054e16ce31fa83b1506a44ff4682b3e4a444035b0cb3f60f5fffbb1358f4209a7f67e6b2c317fcf7e4e1587378",
       "role": "customer",
       "created_at": "2026-05-13T17:17:28.068690"
+    },
+    {
+      "user_id": "cust_3",
+      "name": "abhishek singh",
+      "email": "abhishek@gmail.com",
+      "password_hash": "scrypt:32768:8:1$67ehhbvNPcTboZkb$18bc6b37e1f4df2d994b7259e958b6d7717fbad29ce490974d506a3b9e98531019b7d3bb101df5a31dfbbcd39eafa2db39318c6b0e9ce777c676de2990de57c0",
+      "role": "customer",
+      "created_at": "2026-05-17T09:13:32.681934"
     }
   ]
 }
