@@ -97,7 +97,7 @@ pipeline {
                         script {
                             sh '''
                                 echo "Building pricing-api image..."
-                                docker build -f Dockerfile -t ${IMAGE_REPO}:pricing-api-${IMAGE_TAG} . 2>&1 | tail -20
+                                docker build --network=host -f Dockerfile -t ${IMAGE_REPO}:pricing-api-${IMAGE_TAG} . 2>&1 | tail -20
                                 docker tag ${IMAGE_REPO}:pricing-api-${IMAGE_TAG} ${IMAGE_REPO}:pricing-api-latest
                             '''
                         }
@@ -108,7 +108,7 @@ pipeline {
                         script {
                             sh '''
                                 echo "Building admin image..."
-                                docker build -f Dockerfile.admin -t ${IMAGE_REPO}:admin-${IMAGE_TAG} . 2>&1 | tail -20
+                                docker build --network=host -f Dockerfile.admin -t ${IMAGE_REPO}:admin-${IMAGE_TAG} . 2>&1 | tail -20
                                 docker tag ${IMAGE_REPO}:admin-${IMAGE_TAG} ${IMAGE_REPO}:admin-latest
                             '''
                         }
@@ -119,7 +119,7 @@ pipeline {
                         script {
                             sh '''
                                 echo "Building customer image..."
-                                docker build -f Dockerfile.customer -t ${IMAGE_REPO}:customer-${IMAGE_TAG} . 2>&1 | tail -20
+                                docker build --network=host -f Dockerfile.customer -t ${IMAGE_REPO}:customer-${IMAGE_TAG} . 2>&1 | tail -20
                                 docker tag ${IMAGE_REPO}:customer-${IMAGE_TAG} ${IMAGE_REPO}:customer-latest
                             '''
                         }
@@ -130,7 +130,7 @@ pipeline {
                         script {
                             sh '''
                                 echo "Building trainer image..."
-                                docker build -f Dockerfile.trainer -t ${IMAGE_REPO}:trainer-${IMAGE_TAG} . 2>&1 | tail -20
+                                docker build --network=host -f Dockerfile.trainer -t ${IMAGE_REPO}:trainer-${IMAGE_TAG} . 2>&1 | tail -20
                                 docker tag ${IMAGE_REPO}:trainer-${IMAGE_TAG} ${IMAGE_REPO}:trainer-latest
                             '''
                         }
