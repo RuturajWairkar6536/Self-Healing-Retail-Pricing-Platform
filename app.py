@@ -139,8 +139,8 @@ def log_request(response):
     )
     return response
 
-MODEL_PATH = "pricing_model.pkl"
 DATA_DIR = "data"
+MODEL_PATH = os.path.join(DATA_DIR, "pricing_model.pkl")
 PRODUCTS_CSV = os.path.join(DATA_DIR, "products.csv")
 INVENTORY_CSV = os.path.join(DATA_DIR, "inventory.csv")
 ORDERS_CSV = os.path.join(DATA_DIR, "orders.csv")
