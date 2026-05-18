@@ -32,6 +32,9 @@ Start-Process -NoNewWindow kubectl -ArgumentList "port-forward svc/admin-dashboa
 Start-Process -NoNewWindow kubectl -ArgumentList "port-forward svc/customer-portal 8504:8504 -n spe-platform --address 127.0.0.1"
 Start-Process -NoNewWindow kubectl -ArgumentList "port-forward svc/pricing-api 5001:5001 -n spe-platform --address 127.0.0.1"
 
+Write-Host "6. Syncing Kubernetes Logs to Logstash..." -ForegroundColor Yellow
+Start-Process -NoNewWindow powershell -ArgumentList "-Command kubectl exec deployment/pricing-api -n spe-platform -c pricing-api -- tail -f /app/logs/api.log > logs/api.log"
+
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "Architecture Fully Live!" -ForegroundColor Green
 Write-Host "Admin Dashboard: http://localhost:8503"
