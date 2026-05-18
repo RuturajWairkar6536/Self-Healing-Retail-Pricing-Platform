@@ -36,6 +36,11 @@ Write-Host "Infrastructure started!" -ForegroundColor Green
 Write-Host "Waiting for services to become healthy..." -ForegroundColor Yellow
 Start-Sleep -Seconds 15
 
+Write-Host "Seeding secure credentials into Hashicorp Vault..." -ForegroundColor Yellow
+docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_TOKEN=spe-dev-root vault vault kv put secret/spe/dockerhub username="ruturajwairkar" password="mock_dockerhub_token_xyz123" >$null 2>&1
+docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_TOKEN=spe-dev-root vault vault kv put secret/spe/kubeconfig kubeconfig="apiVersion: v1`nkind: Config`nclusters: []" >$null 2>&1
+docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_TOKEN=spe-dev-root vault vault kv put secret/spe/app reload_token="spe-platform-secure-token-2026" >$null 2>&1
+
 Write-Host "Verify status using 'docker ps'." -ForegroundColor Green
 Write-Host "- ELK (Kibana): http://localhost:5601"
 Write-Host "- Vault: http://localhost:8200"
