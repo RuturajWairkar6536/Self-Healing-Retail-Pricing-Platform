@@ -10,10 +10,10 @@ pipeline {
         timestamps()
     }
 
-    triggers {
-        githubPush()
-        pollSCM('H/5 * * * *')
-    }
+      triggers {
+         githubPush()
+         pollSCM('H/5 * * * *')
+     }
 
     parameters {
         string(name: 'DOCKERHUB_NAMESPACE', defaultValue: 'ruturajwairkar', description: 'Docker Hub namespace or username')
@@ -97,7 +97,7 @@ pipeline {
                         script {
                             sh '''
                                 echo "Building pricing-api image..."
-                                docker build --network=host -f Dockerfile -t ${IMAGE_REPO}:pricing-api-${IMAGE_TAG} . 2>&1 | tail -20
+                                docker build -f Dockerfile -t ${IMAGE_REPO}:pricing-api-${IMAGE_TAG} . 2>&1 | tail -20
                                 docker tag ${IMAGE_REPO}:pricing-api-${IMAGE_TAG} ${IMAGE_REPO}:pricing-api-latest
                             '''
                         }
@@ -108,7 +108,7 @@ pipeline {
                         script {
                             sh '''
                                 echo "Building admin image..."
-                                docker build --network=host -f Dockerfile.admin -t ${IMAGE_REPO}:admin-${IMAGE_TAG} . 2>&1 | tail -20
+                                docker build -f Dockerfile.admin -t ${IMAGE_REPO}:admin-${IMAGE_TAG} . 2>&1 | tail -20
                                 docker tag ${IMAGE_REPO}:admin-${IMAGE_TAG} ${IMAGE_REPO}:admin-latest
                             '''
                         }
@@ -119,7 +119,7 @@ pipeline {
                         script {
                             sh '''
                                 echo "Building customer image..."
-                                docker build --network=host -f Dockerfile.customer -t ${IMAGE_REPO}:customer-${IMAGE_TAG} . 2>&1 | tail -20
+                                docker build -f Dockerfile.customer -t ${IMAGE_REPO}:customer-${IMAGE_TAG} . 2>&1 | tail -20
                                 docker tag ${IMAGE_REPO}:customer-${IMAGE_TAG} ${IMAGE_REPO}:customer-latest
                             '''
                         }
@@ -130,7 +130,7 @@ pipeline {
                         script {
                             sh '''
                                 echo "Building trainer image..."
-                                docker build --network=host -f Dockerfile.trainer -t ${IMAGE_REPO}:trainer-${IMAGE_TAG} . 2>&1 | tail -20
+                                docker build -f Dockerfile.trainer -t ${IMAGE_REPO}:trainer-${IMAGE_TAG} . 2>&1 | tail -20
                                 docker tag ${IMAGE_REPO}:trainer-${IMAGE_TAG} ${IMAGE_REPO}:trainer-latest
                             '''
                         }
@@ -211,8 +211,15 @@ pipeline {
                             kubectl apply -f k8s/secrets/ || true
                             
                             # Replace placeholders in deployments and apply
-                            sed -i "s|IMAGE_REGISTRY|${REGISTRY}/${params.DOCKERHUB_NAMESPACE}|g" k8s/deployments/app-deployments.yaml
-                            sed -i "s|IMAGE_TAG|${IMAGE_TAG}|g" k8s/deployments/app-deployments.yaml
+                            sed -i "s|IMAGE_REGISTRY|${REGISTRY}/${params.DOCKERHUB_NAMESPACE}|g" k8s/deployments/*.yaml
+                            sed -i "s|IMAGE_TAG|${IMAGE_TAG}|g" k8s/deployments/*.yaml
+                            
+                            echo "Loading images into Minikube..."
+                            docker save ${IMAGE_REPO}:pricing-api-latest | docker exec -i minikube docker load || true
+                            docker save ${IMAGE_REPO}:admin-latest | docker exec -i minikube docker load || true
+                            docker save ${IMAGE_REPO}:customer-latest | docker exec -i minikube docker load || true
+                            docker save ${IMAGE_REPO}:trainer-${IMAGE_TAG} | docker exec -i minikube docker load || true
+                            
                             kubectl apply -f k8s/deployments/ || true
                             
                             kubectl apply -f k8s/services/ || true
@@ -224,8 +231,8 @@ pipeline {
                             kubectl rollout status deployment/customer-portal -n spe-platform --timeout=2m || true
                             
                             echo "Deployment Status:"
-                            kubectl get pods -n spe-platform
-                            kubectl get services -n spe-platform
+                            kubectl get pods -n spe-platform || true
+                            kubectl get services -n spe-platform || true
                         """
                     }
                 }
