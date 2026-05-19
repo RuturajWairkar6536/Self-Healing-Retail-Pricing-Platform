@@ -12,7 +12,7 @@ pipeline {
 
       triggers {
          githubPush()
-         pollSCM('H/2 * * * *')
+         pollSCM('H/5 * * * *')
      }
 
     parameters {
